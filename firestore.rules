@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Keep this list in sync with ALLOWED_EMAILS in js/auth.js.
+    function isAllowed() {
+      return request.auth != null &&
+        request.auth.token.email.lower() in [
+          'anthonypruski@gmail.com'
+          // 'dad@example.com',
+          // 'amaya@example.com',
+          // 'jennifer@example.com',
+        ];
+    }
+
+    match /{document=**} {
+      allow read, write: if isAllowed();
+    }
+  }
+}

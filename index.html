@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Household Meal Plan</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div id="not-configured-screen" class="screen hidden">
+    <div class="center-box">
+      <h1>Firebase not configured yet</h1>
+      <p>Edit <code>js/firebase-init.js</code> with your Firebase project's config values to get started.</p>
+    </div>
+  </div>
+
+  <div id="login-screen" class="screen hidden">
+    <div class="center-box">
+      <h1>Household Meal Plan</h1>
+      <p>Sign in with the Google account your household uses for this app.</p>
+      <button id="sign-in-btn" class="btn-primary">Sign in with Google</button>
+    </div>
+  </div>
+
+  <div id="unauthorized-screen" class="screen hidden">
+    <div class="center-box">
+      <h1>Not authorized</h1>
+      <p>This Google account isn't on the household allowlist yet. Ask Anthony to add your email in <code>js/auth.js</code>.</p>
+      <button id="unauthorized-sign-out-btn" class="btn-secondary">Sign out</button>
+    </div>
+  </div>
+
+  <div id="app-screen" class="screen hidden">
+    <header class="app-header">
+      <h1>Household Meal Plan</h1>
+      <div class="header-user">
+        <span id="user-name"></span>
+        <button id="sign-out-btn" class="btn-link">Sign out</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="pantry">Pantry</button>
+      <button class="tab-btn" data-tab="recipes">Recipes</button>
+      <button class="tab-btn" data-tab="mealplan">Meal Plan</button>
+    </nav>
+
+    <main>
+      <div id="pantry-view" class="tab-view active"></div>
+      <div id="recipes-view" class="tab-view"></div>
+      <div id="mealplan-view" class="tab-view"></div>
+    </main>
+
+    <div class="fab-row">
+      <button id="add-pantry-btn" class="fab" data-tab-only="pantry">+ Item</button>
+      <button id="add-recipe-btn" class="fab" data-tab-only="recipes">+ Recipe</button>
+      <button id="add-meal-btn" class="fab" data-tab-only="mealplan">+ Meal</button>
+    </div>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
