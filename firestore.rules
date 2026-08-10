@@ -5,9 +5,9 @@ service cloud.firestore {
     function isAllowed() {
       return request.auth != null &&
         request.auth.token.email.lower() in [
-          'anthonypruski@gmail.com'
-          // 'dad@example.com',
-          // 'amaya@example.com',
+          'anthonypruski@gmail.com',
+          'tmowersnstuff@gmail.com',
+          'amayaxchanx@gmail.com'
           // 'jennifer@example.com',
         ];
     }

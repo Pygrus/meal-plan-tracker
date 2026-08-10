@@ -9,8 +9,8 @@ import {
 // Add every household member's Google account email here (lowercase).
 export const ALLOWED_EMAILS = [
   "anthonypruski@gmail.com",
-  // "dad@example.com",
-  // "amaya@example.com",
+  "tmowersnstuff@gmail.com",
+  "amayaxchanx@gmail.com",
   // "jennifer@example.com",
 ];
 
