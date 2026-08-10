@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One-time data import</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="center-box" style="max-width:560px; margin-top:8vh;">
+    <h1>One-time spreadsheet import</h1>
+    <p id="status">Checking sign-in...</p>
+    <div id="controls" class="hidden">
+      <p id="summary"></p>
+      <button id="run-btn" class="btn-primary">Import into Firestore</button>
+    </div>
+    <pre id="log" style="text-align:left; font-size:0.8rem; white-space:pre-wrap; max-height:300px; overflow:auto;"></pre>
+  </div>
+
+  <script type="module">
+    import { db } from "./js/firebase-init.js";
+    import { signIn, watchAuth, isAllowed } from "./js/auth.js";
+    import {
+      collection, addDoc, getDocs, serverTimestamp,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const statusEl = document.getElementById("status");
+    const controlsEl = document.getElementById("controls");
+    const summaryEl = document.getElementById("summary");
+    const logEl = document.getElementById("log");
+    const runBtn = document.getElementById("run-btn");
+
+    function log(line) {
+      logEl.textContent += line + "\n";
+    }
+
+    // --- Recipe Ideas tab (merged with the one filled-in ingredient list from the Recipes tab) ---
+    const RECIPES = [
+      { name: "Chicken burrito bowl (pressure cooker)", category: "Weeknight", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Meatball sub casserole", category: "Weeknight", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Kielbasa & pierogies", category: "Weeknight", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Japanese curry with rice", category: "Weeknight", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Sheet-pan sausage & veggies", category: "Weeknight", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Chicken tikka masala (pressure cooker)", category: "Weeknight", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Loaded baked potato bar", category: "Weeknight", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Tacos", category: "Saturday", status: "In rotation", suggestedBy: "Anthony", notes: "",
+        ingredients: [
+          { name: "Ground beef", quantity: "2", unit: "lb", estCostPerUnit: "4.5" },
+          { name: "Taco seasoning", quantity: "2", unit: "packet", estCostPerUnit: "1.25" },
+          { name: "Taco shells", quantity: "1", unit: "box (12ct)", estCostPerUnit: "3.5" },
+          { name: "Shredded cheese", quantity: "1", unit: "bag (8oz)", estCostPerUnit: "3" },
+          { name: "Lettuce", quantity: "1", unit: "head", estCostPerUnit: "2" },
+          { name: "Tomatoes", quantity: "3", unit: "each", estCostPerUnit: "0.6" },
+        ] },
+      { name: "Chili", category: "Saturday", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Brats", category: "Saturday", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Nacho bar", category: "Saturday", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Taco potato casserole", category: "Leftover-recycling", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Chili mac / chili-stuffed baked potatoes", category: "Leftover-recycling", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Brat soup", category: "Leftover-recycling", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Crustless quiche/egg bake", category: "Freezer/batch", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Baked ziti / taco pasta bake", category: "Freezer/batch", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Breakfast burritos", category: "Freezer/batch", status: "In rotation", suggestedBy: "Anthony", notes: "" },
+      { name: "Sliders + wings", category: "Saturday", status: "Idea to try", suggestedBy: "Anthony", notes: "" },
+      { name: "Pizza quesadillas (from leftover pizza)", category: "Leftover-recycling", status: "Idea to try", suggestedBy: "Anthony", notes: "" },
+      { name: "Meatloaf (smoker, big batch)", category: "Saturday/group", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Burgers", category: "Weeknight/Saturday", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Frozen pizza", category: "Lazy day / no-cook", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Chicken and rice casserole", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Cheesy broccoli chicken casserole", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Stir fry", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Beef and broccoli", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Tater tot casserole", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "French onion chicken", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Creamy Tuscan chicken", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "French dip sandwiches (quick)", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "Shepherd's / cottage pie", category: "Weeknight", status: "Made before", suggestedBy: "Anthony", notes: "" },
+      { name: "French onion mac and cheese", category: "Weeknight", status: "Idea to try", suggestedBy: "Anthony", notes: "" },
+      { name: "Smash burger on a tortilla + queso burger combo", category: "Weeknight/Saturday", status: "Idea to try", suggestedBy: "Anthony", notes: "" },
+      { name: "Mexican chili dip (Velveeta, Rotel, canned chili, ground beef, taco seasoning)", category: "Snack/Nacho night", status: "Idea to try", suggestedBy: "Dad (via Jennifer)", notes: "Anthony hasn't made it — research ingredient/method variations before deciding on a method" },
+      { name: "Slow cooker pulled pork", category: "Slow cooker/prep-ahead", status: "Idea to try", suggestedBy: "Anthony", notes: "Morning prep by Dad or Amaya" },
+      { name: "Slow cooker chicken tortilla soup", category: "Slow cooker/prep-ahead", status: "Idea to try", suggestedBy: "Anthony", notes: "Morning prep by Dad or Amaya" },
+      { name: "Slow cooker beef stew", category: "Slow cooker/prep-ahead", status: "Idea to try", suggestedBy: "Anthony", notes: "Morning prep by Dad or Amaya" },
+      { name: "Green bean casserole", category: "Saturday/side", status: "Idea to try", suggestedBy: "Anthony", notes: "Uses cream of mushroom soup + panko on hand; won't clear all 17 cans of green beans alone" },
+      { name: "Pork tenderloin with stuffing", category: "Weeknight", status: "Idea to try", suggestedBy: "Anthony", notes: "Uses the 2 frozen pork tenderloins + a box of stuffing on hand" },
+      { name: "French onion pot roast / chicken (slow cooker)", category: "Slow cooker/prep-ahead", status: "Idea to try", suggestedBy: "Anthony", notes: "Uses onion soup mix on hand" },
+      { name: "Homemade stir fry", category: "Weeknight", status: "Idea to try", suggestedBy: "Anthony", notes: "From-scratch version using rice vinegar, aji-mirin, bamboo shoots, furikake on hand" },
+    ];
+
+    // --- Pantry Inventory tab. plannedFor references a RECIPES[].name above (resolved to an id at import time). ---
+    const PANTRY_ITEMS = [
+      { name: "Green beans (canned)", location: "Pantry", quantity: "17 cans", notes: "Green bean casserole idea won't clear all of these alone" },
+      { name: "Peas (canned)", location: "Pantry", quantity: "1 small + 1 large can" },
+      { name: "Diced tomatoes (canned)", location: "Pantry", quantity: "4 cans" },
+      { name: "Rice vinegar", location: "Pantry", quantity: "1 bottle", plannedFor: "Homemade stir fry" },
+      { name: "Stewed tomatoes (canned)", location: "Pantry", quantity: "1 large can" },
+      { name: "Ginger, crystallized", location: "Pantry", quantity: "1" },
+      { name: "Aji-mirin", location: "Pantry", quantity: "1 bottle", plannedFor: "Homemade stir fry" },
+      { name: "Dark brown sugar", location: "Pantry", quantity: "1" },
+      { name: "Bamboo shoots (canned)", location: "Pantry", quantity: "1 can", plannedFor: "Homemade stir fry" },
+      { name: "Sweet Baby Ray's honey BBQ", location: "Pantry", quantity: "1 bottle" },
+      { name: "Furikake", location: "Pantry", quantity: "1", plannedFor: "Homemade stir fry" },
+      { name: "Light brown sugar", location: "Pantry", quantity: "1" },
+      { name: "Cream of mushroom soup (family size)", location: "Pantry", quantity: "2 cans", plannedFor: "Green bean casserole" },
+      { name: "Honey", location: "Pantry", quantity: "1 bottle" },
+      { name: "Bush's baked beans", location: "Pantry", quantity: "1 can" },
+      { name: "Tomato paste", location: "Pantry", quantity: "1 small can" },
+      { name: "Panko", location: "Pantry", quantity: "small amount", plannedFor: "Green bean casserole" },
+      { name: "Tomato pasta sauce", location: "Pantry", quantity: "2 cans", plannedFor: "Meatball sub casserole" },
+      { name: "Ranch seasoning packet", location: "Pantry", quantity: "1" },
+      { name: "Baking powder", location: "Pantry", quantity: "1" },
+      { name: "Baking soda", location: "Pantry", quantity: "1" },
+      { name: "Sugar", location: "Pantry", quantity: "1" },
+      { name: "Jasmine rice", location: "Pantry", quantity: "1 bag" },
+      { name: "Japanese curry seasoning", location: "Pantry", quantity: "3 packets", plannedFor: "Japanese curry with rice", notes: "Enough for multiple rounds" },
+      { name: "Onion soup mix", location: "Pantry", quantity: "1", plannedFor: "French onion pot roast / chicken (slow cooker)" },
+      { name: "Dried peppers, various", location: "Pantry", quantity: "assorted" },
+      { name: "Mac n cheese boxes", location: "Pantry", quantity: "6 boxes", notes: "Priority use-up item" },
+      { name: "Cilantro lime rice packet", location: "Pantry", quantity: "1" },
+      { name: "Chicken & broccoli rice side", location: "Pantry", quantity: "1" },
+      { name: "Cheddar broccoli rice side", location: "Pantry", quantity: "1" },
+      { name: "Rigatoni", location: "Pantry", quantity: "1 box" },
+      { name: "Tikka masala sauce (jar)", location: "Pantry", quantity: "1 jar", plannedFor: "Chicken tikka masala (pressure cooker)" },
+      { name: "Instant mashed potatoes", location: "Pantry", quantity: "a lot", notes: "Priority use-up item" },
+      { name: "Stuffing boxes", location: "Pantry", quantity: "3 boxes", plannedFor: "Pork tenderloin with stuffing", notes: "1 box earmarked, 2 spare" },
+      { name: "Spaghetti noodles", location: "Pantry", quantity: "4 boxes" },
+      { name: "Wide egg noodles", location: "Pantry", quantity: "1 bag" },
+      { name: "Lasagna noodles", location: "Pantry", quantity: "1 box" },
+      { name: "Chicken thighs", location: "Freezer", quantity: "2 lb" },
+      { name: "Chicken breast", location: "Freezer", quantity: "3 lb" },
+      { name: "Burger patties", location: "Freezer", quantity: "~20" },
+      { name: "Garlic bread", location: "Freezer", quantity: "2 loaves" },
+      { name: "Pork tenderloin", location: "Freezer", quantity: "2", plannedFor: "Pork tenderloin with stuffing" },
+    ];
+
+    summaryEl.textContent = `Ready to import ${RECIPES.length} recipes and ${PANTRY_ITEMS.length} pantry items. This does not touch the Meal Plan tab (that draft is stale — build the real one in the app).`;
+
+    let currentUser = null;
+
+    watchAuth((user) => {
+      currentUser = user;
+      if (!user) {
+        statusEl.textContent = "Not signed in.";
+        const btn = document.createElement("button");
+        btn.className = "btn-primary";
+        btn.textContent = "Sign in with Google";
+        btn.onclick = () => signIn().catch((e) => log("Sign-in error: " + e.message));
+        statusEl.after(btn);
+        return;
+      }
+      if (!isAllowed(user)) {
+        statusEl.textContent = `Signed in as ${user.email}, but that's not on the household allowlist.`;
+        return;
+      }
+      statusEl.textContent = `Signed in as ${user.displayName || user.email}.`;
+      controlsEl.classList.remove("hidden");
+    });
+
+    async function runImport() {
+      runBtn.disabled = true;
+      const existing = await getDocs(collection(db, "recipes"));
+      if (!existing.empty) {
+        if (!confirm(`recipes already has ${existing.size} document(s). Import anyway? This will add duplicates rather than replace anything.`)) {
+          runBtn.disabled = false;
+          return;
+        }
+      }
+
+      log("Importing recipes...");
+      const nameToId = {};
+      for (const r of RECIPES) {
+        const ref = await addDoc(collection(db, "recipes"), {
+          name: r.name,
+          category: r.category,
+          status: r.status,
+          suggestedBy: r.suggestedBy,
+          notes: r.notes || "",
+          ingredients: r.ingredients || [],
+          votesToRemove: [],
+          createdBy: currentUser.displayName || currentUser.email,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        nameToId[r.name] = ref.id;
+        log(`  + ${r.name}`);
+      }
+
+      log("Importing pantry items...");
+      for (const p of PANTRY_ITEMS) {
+        await addDoc(collection(db, "pantryItems"), {
+          name: p.name,
+          location: p.location,
+          quantity: p.quantity || "",
+          useByDate: null,
+          plannedForRecipeId: p.plannedFor ? nameToId[p.plannedFor] || null : null,
+          plannedForNote: "",
+          notes: p.notes || "",
+          addedBy: currentUser.displayName || currentUser.email,
+          createdAt: serverTimestamp(),
+        });
+        log(`  + ${p.name}`);
+      }
+
+      log(`Done. Imported ${RECIPES.length} recipes and ${PANTRY_ITEMS.length} pantry items.`);
+      log("You can delete import-data.html from the repo now.");
+      runBtn.disabled = false;
+    }
+
+    runBtn.addEventListener("click", runImport);
+  </script>
+</body>
+</html>
