@@ -21,11 +21,12 @@ import {
 
 const LOCATIONS = ["Pantry", "Fridge", "Freezer"];
 
-function logPantryEvent(action, item) {
+function logPantryEvent(action, item, extra = {}) {
   return addDoc(collection(db, "pantryLog"), {
     itemName: item.name,
-    action, // "added" | "usedUp"
+    action, // "added" | "usedUp" | "adjusted"
     quantity: item.quantity || "",
+    ...extra,
     at: serverTimestamp(),
     by: state.user.displayName || state.user.email,
   });
@@ -167,7 +168,11 @@ function openEditPantryModal(item) {
   openModal(pantryFormHtml(item));
   $("#pantry-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    await updatePantryItem(item.id, readPantryForm(e.target));
+    const fields = readPantryForm(e.target);
+    await updatePantryItem(item.id, fields);
+    if (fields.quantity !== (item.quantity || "")) {
+      logPantryEvent("adjusted", fields, { previousQuantity: item.quantity || "" });
+    }
     closeModal();
   });
 }
